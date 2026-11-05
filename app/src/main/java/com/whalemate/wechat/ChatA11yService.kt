@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
@@ -14,6 +15,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
@@ -139,38 +141,33 @@ class ChatA11yService : AccessibilityService() {
     private fun analyze(auto: Boolean) {
         if (busy) return
         if (!auto) toast("正在读取屏幕…")
-        val root = wechatRoot()
-        if (root == null) {
-            if (!auto) toast("当前没有可读界面")
-            return
-        }
-        val dm = resources.displayMetrics
         val settings = AppSettings(this)
-        val screen = WeChatParser.parse(
-            root, dm.widthPixels, dm.heightPixels, dm.density, settings.contactName
-        )
-        if (!screen.isChat || screen.messages.isEmpty()) {
-            if (!auto) {
-                val dump = windowsReport()
-                val saved = saveDump(dump)
-                toast(
-                    if (saved) "没识别到，已存 Download（${dump.length} 字）"
-                    else "没识别到，已复制（${dump.length} 字）"
-                )
-            }
-            return
+        val dm = resources.displayMetrics
+        val root = wechatRoot()
+        val screen = if (root == null) {
+            WeChatScreen(false, "", emptyList())
+        } else {
+            WeChatParser.parse(root, dm.widthPixels, dm.heightPixels, dm.density, settings.contactName)
         }
 
-        if (auto) {
-            val last = screen.messages.last()
-            if (last.fromMe) return
-            val key = screen.messages.takeLast(4).joinToString("|") {
-                (if (it.fromMe) "1" else "0") + it.text
+        if (screen.isChat && screen.messages.isNotEmpty()) {
+            if (auto) {
+                val last = screen.messages.last()
+                if (last.fromMe) return
+                val key = screen.messages.takeLast(4).joinToString("|") {
+                    (if (it.fromMe) "1" else "0") + it.text
+                }
+                if (key == lastKey) return
+                lastKey = key
             }
-            if (key == lastKey) return
-            lastKey = key
+            generate(settings, screen)
+        } else {
+            if (!auto) toast("无障碍读不到，改用截图识别…")
+            captureAndOcr(settings)
         }
+    }
 
+    private fun generate(settings: AppSettings, screen: WeChatScreen) {
         busy = true
         Thread {
             try {
@@ -197,6 +194,52 @@ class ChatA11yService : AccessibilityService() {
                 busy = false
             }
         }.start()
+    }
+
+    private fun captureAndOcr(settings: AppSettings) {
+        if (Build.VERSION.SDK_INT < 30) {
+            busy = false
+            toast("系统版本不支持截图识别")
+            return
+        }
+        busy = true
+        takeScreenshot(
+            Display.DEFAULT_DISPLAY,
+            mainExecutor,
+            object : AccessibilityService.TakeScreenshotCallback {
+                override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
+                    val hardware = result.hardwareBuffer
+                    val bitmap = try {
+                        Bitmap.wrapHardwareBuffer(hardware, result.colorSpace)
+                            ?.copy(Bitmap.Config.ARGB_8888, false)
+                    } catch (_: Throwable) {
+                        null
+                    } finally {
+                        hardware.close()
+                    }
+                    if (bitmap == null) {
+                        busy = false
+                        toast("截图失败")
+                        return
+                    }
+                    OcrReader.read(this@ChatA11yService, bitmap, settings.contactName) { screen ->
+                        if (!screen.isChat || screen.messages.isEmpty()) {
+                            busy = false
+                            val dump = windowsReport()
+                            saveDump(dump)
+                            toast("截图里没识别到文字（报告 ${dump.length} 字已存）")
+                        } else {
+                            generate(settings, screen)
+                        }
+                    }
+                }
+
+                override fun onFailure(errorCode: Int) {
+                    busy = false
+                    toast("截图失败：$errorCode")
+                }
+            }
+        )
     }
 
     fun sendByIndex(index: Int) {

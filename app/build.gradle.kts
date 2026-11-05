@@ -11,8 +11,8 @@ android {
         applicationId = "com.whalemate.wechat"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.3.3"
+        versionCode = 12
+        versionName = "0.4.0"
     }
 
     buildTypes {
@@ -29,4 +29,8 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+dependencies {
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 }
