@@ -78,6 +78,7 @@ class ChatA11yService : AccessibilityService() {
 
     private fun analyze(auto: Boolean) {
         if (busy) return
+        if (!auto) toast("正在读取屏幕…")
         val root = rootInActiveWindow
         if (root == null) {
             if (!auto) toast("当前没有可读界面")
@@ -89,7 +90,10 @@ class ChatA11yService : AccessibilityService() {
             root, dm.widthPixels, dm.heightPixels, dm.density, settings.contactName
         )
         if (!screen.isChat || screen.messages.isEmpty()) {
-            if (!auto) toast("不在微信聊天界面")
+            if (!auto) {
+                copyScreenToClipboard()
+                toast("没识别到聊天界面，已复制屏幕结构，发我")
+            }
             return
         }
 
@@ -136,6 +140,14 @@ class ChatA11yService : AccessibilityService() {
     fun sendByIndex(index: Int) {
         val reply = pendingResult?.options?.getOrNull(index) ?: return
         sendText(reply.text)
+    }
+
+    private fun copyScreenToClipboard() {
+        try {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("whalechat-dump", dumpScreen()))
+        } catch (_: Throwable) {
+        }
     }
 
     fun sendText(text: String) {

@@ -4,9 +4,11 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.TextView
 import kotlin.math.abs
@@ -23,13 +25,14 @@ object FloatingBall {
         val app = ctx.applicationContext
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val density = app.resources.displayMetrics.density
-        val size = (56 * density).toInt()
+        val size = (60 * density).toInt()
 
         val ball = TextView(app).apply {
             text = "鲸"
             textSize = 18f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
+            isClickable = true
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#2F6BFF"))
@@ -45,47 +48,50 @@ object FloatingBall {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = app.resources.displayMetrics.widthPixels - size - (10 * density).toInt()
+            x = app.resources.displayMetrics.widthPixels - size - (18 * density).toInt()
             y = (app.resources.displayMetrics.heightPixels * 0.35f).toInt()
         }
 
+        val slop = ViewConfiguration.get(app).scaledTouchSlop
         var downX = 0f
         var downY = 0f
         var startX = params.x
         var startY = params.y
         var moved = false
 
+        val detector = GestureDetector(app, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                onClick()
+                return true
+            }
+        })
+
         ball.setOnTouchListener { v, event ->
-            when (event.action) {
+            detector.onTouchEvent(event)
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = event.rawX
                     downY = event.rawY
                     startX = params.x
                     startY = params.y
                     moved = false
-                    true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (event.rawX - downX).toInt()
                     val dy = (event.rawY - downY).toInt()
-                    if (abs(dx) > 12 || abs(dy) > 12) moved = true
-                    params.x = startX + dx
-                    params.y = startY + dy
-                    try {
-                        wm.updateViewLayout(v, params)
-                    } catch (_: Throwable) {
+                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) moved = true
+                    if (moved) {
+                        params.x = startX + dx
+                        params.y = startY + dy
+                        try {
+                            wm.updateViewLayout(v, params)
+                        } catch (_: Throwable) {
+                        }
                     }
-                    true
                 }
-
-                MotionEvent.ACTION_UP -> {
-                    if (!moved) onClick()
-                    true
-                }
-
-                else -> false
             }
+            true
         }
 
         try {
