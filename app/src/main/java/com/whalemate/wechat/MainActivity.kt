@@ -1,11 +1,14 @@
 package com.whalemate.wechat
 
+import android.Manifest
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
@@ -47,6 +50,12 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(24), dp(20), dp(48))
         }
         setContentView(ScrollView(this).apply { addView(content) })
+
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7)
+        }
 
         content.addView(title("鲸聊 · 微信 AI 回复"))
         content.addView(hint("读取微信聊天，生成候选回复；点一条发送。"))
@@ -146,16 +155,17 @@ class MainActivity : Activity() {
         }
         content.addView(statusView)
 
-        content.addView(hint("用法：保存 → 开无障碍 → 开悬浮窗 → 打开微信聊天。她发新消息后弹出候选回复。"))
+        content.addView(hint("用法：保存 → 开无障碍 → 打开微信聊天。她发新消息后：有悬浮窗权限就弹窗，没有就发通知栏三条。"))
     }
 
     override fun onResume() {
         super.onResume()
         if (::statusView.isInitialized) {
             val a11y = if (ChatA11yService.instance != null) "无障碍：已连接" else "无障碍：未连接"
+            val overlay = if (Settings.canDrawOverlays(this)) "悬浮窗：已授权" else "悬浮窗：未授权（用通知栏）"
             val backend = if (settings.backend == "dsh") "来源：DSH 桥" else "来源：直连 DeepSeek"
             val key = if (settings.apiKey.isBlank()) "Key：未填" else "Key：已填"
-            statusView.text = "$a11y\n$backend\n$key"
+            statusView.text = "$a11y\n$overlay\n$backend\n$key"
         }
     }
 

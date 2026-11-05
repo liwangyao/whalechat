@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
@@ -17,6 +18,9 @@ class ChatA11yService : AccessibilityService() {
     companion object {
         @Volatile
         var instance: ChatA11yService? = null
+
+        @Volatile
+        var pendingReplies: List<ReplyOption> = emptyList()
 
         const val WECHAT = "com.tencent.mm"
     }
@@ -71,8 +75,15 @@ class ChatA11yService : AccessibilityService() {
         Thread {
             try {
                 val replies = ReplyEngine.generate(this, settings, screen)
+                pendingReplies = replies
                 handler.post {
-                    OverlayPanel.show(this, replies, settings.autoSend) { text -> sendText(text) }
+                    when {
+                        settings.autoSend && replies.isNotEmpty() -> sendText(replies.first().text)
+                        Settings.canDrawOverlays(this) -> OverlayPanel.show(this, replies, false) { text ->
+                            sendText(text)
+                        }
+                        else -> ReplyNotifier.show(this, replies)
+                    }
                 }
             } catch (t: Throwable) {
                 handler.post { toast("生成失败：${t.message}") }
@@ -80,6 +91,11 @@ class ChatA11yService : AccessibilityService() {
                 busy = false
             }
         }.start()
+    }
+
+    fun sendByIndex(index: Int) {
+        val reply = pendingReplies.getOrNull(index) ?: return
+        sendText(reply.text)
     }
 
     fun sendText(text: String) {
