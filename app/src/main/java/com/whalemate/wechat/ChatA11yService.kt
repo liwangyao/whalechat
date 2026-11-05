@@ -291,19 +291,15 @@ class ChatA11yService : AccessibilityService() {
     }
 
     fun sendText(text: String, retried: Boolean = false) {
-        val root = wechatRoot()
-        if (root == null) {
-            toast("微信不在前台")
-            return
-        }
-        val edit = findEditable(root)
+        val edit = findEditableAnyWindow()
         if (edit == null) {
-            if (retried) {
-                toast("没找到输入框")
+            if (!retried) {
+                tapInputBar()
+                handler.postDelayed({ sendText(text, true) }, 900)
                 return
             }
-            tapBottomInput()
-            handler.postDelayed({ sendText(text, true) }, 900)
+            copyText(text)
+            toast("没找到输入框，已复制，长按输入框粘贴")
             return
         }
 
@@ -312,18 +308,18 @@ class ChatA11yService : AccessibilityService() {
         }
         var ok = edit.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
         if (!ok) {
-            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("reply", text))
+            copyText(text)
             ok = edit.performAction(AccessibilityNodeInfo.ACTION_PASTE)
         }
         if (!ok) {
-            toast("输入失败")
+            copyText(text)
+            toast("已复制，长按输入框粘贴")
             return
         }
 
         suppressUntil = System.currentTimeMillis() + 2500
         handler.postDelayed({
-            val send = findSend(wechatRoot())
+            val send = findSendAnyWindow()
             if (send == null) {
                 toast("没找到发送按钮")
             } else {
@@ -332,11 +328,59 @@ class ChatA11yService : AccessibilityService() {
         }, 600)
     }
 
-    private fun tapBottomInput() {
+    private fun copyText(text: String) {
+        try {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("reply", text))
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun findEditableAnyWindow(): AccessibilityNodeInfo? {
+        try {
+            for (window in windows) {
+                val root = window.root ?: continue
+                val found = findEditable(root)
+                if (found != null) return found
+            }
+        } catch (_: Throwable) {
+        }
+        return findEditable(rootInActiveWindow)
+    }
+
+    private fun findSendAnyWindow(): AccessibilityNodeInfo? {
+        try {
+            for (window in windows) {
+                val root = window.root ?: continue
+                val found = findSend(root)
+                if (found != null) return found
+            }
+        } catch (_: Throwable) {
+        }
+        return findSend(rootInActiveWindow)
+    }
+
+    private fun tapInputBar() {
         try {
             val dm = resources.displayMetrics
+            var imeTop = dm.heightPixels
+            try {
+                for (window in windows) {
+                    if (window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                        val r = Rect()
+                        window.getBoundsInScreen(r)
+                        if (r.top in 1 until imeTop) imeTop = r.top
+                    }
+                }
+            } catch (_: Throwable) {
+            }
+            val y = if (imeTop < dm.heightPixels - (120 * dm.density).toInt()) {
+                imeTop - (40 * dm.density).toInt()
+            } else {
+                dm.heightPixels - (90 * dm.density).toInt()
+            }
             val path = Path().apply {
-                moveTo(dm.widthPixels * 0.45f, dm.heightPixels - 90 * dm.density)
+                moveTo(dm.widthPixels * 0.45f, y.toFloat())
             }
             val gesture = GestureDescription.Builder()
                 .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
