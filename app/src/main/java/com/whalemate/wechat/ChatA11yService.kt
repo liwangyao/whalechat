@@ -1,13 +1,19 @@
 package com.whalemate.wechat
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
+import android.graphics.Path
 import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -91,8 +97,11 @@ class ChatA11yService : AccessibilityService() {
         )
         if (!screen.isChat || screen.messages.isEmpty()) {
             if (!auto) {
-                copyScreenToClipboard()
-                toast("没识别到聊天界面，已复制屏幕结构，发我")
+                val saved = saveDump()
+                toast(
+                    if (saved) "没识别到聊天界面，已存 Download/whalechat-dump.txt"
+                    else "没识别到聊天界面，屏幕结构已复制"
+                )
             }
             return
         }
@@ -142,15 +151,34 @@ class ChatA11yService : AccessibilityService() {
         sendText(reply.text)
     }
 
-    private fun copyScreenToClipboard() {
+    private fun saveDump(): Boolean {
+        val dump = dumpScreen()
         try {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("whalechat-dump", dumpScreen()))
+            cm.setPrimaryClip(ClipData.newPlainText("whalechat-dump", dump))
         } catch (_: Throwable) {
+        }
+        return saveDumpToDownloads(dump)
+    }
+
+    private fun saveDumpToDownloads(text: String): Boolean {
+        if (Build.VERSION.SDK_INT < 29) return false
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, "whalechat-dump.txt")
+                put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: return false
+            contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+            true
+        } catch (_: Throwable) {
+            false
         }
     }
 
-    fun sendText(text: String) {
+    fun sendText(text: String, retried: Boolean = false) {
         val root = rootInActiveWindow
         if (root == null) {
             toast("微信不在前台")
@@ -158,7 +186,12 @@ class ChatA11yService : AccessibilityService() {
         }
         val edit = findEditable(root)
         if (edit == null) {
-            toast("没找到输入框")
+            if (retried) {
+                toast("没找到输入框")
+                return
+            }
+            tapBottomInput()
+            handler.postDelayed({ sendText(text, true) }, 900)
             return
         }
 
@@ -185,6 +218,20 @@ class ChatA11yService : AccessibilityService() {
                 send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             }
         }, 600)
+    }
+
+    private fun tapBottomInput() {
+        try {
+            val dm = resources.displayMetrics
+            val path = Path().apply {
+                moveTo(dm.widthPixels * 0.45f, dm.heightPixels - 90 * dm.density)
+            }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
+                .build()
+            dispatchGesture(gesture, null, null)
+        } catch (_: Throwable) {
+        }
     }
 
     fun dumpScreen(): String {

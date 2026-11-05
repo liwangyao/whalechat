@@ -31,15 +31,21 @@ object WeChatParser {
         val edits = ArrayList<AccessibilityNodeInfo>()
         walk(root, items, edits, 0)
 
-        val edit = edits.firstOrNull() ?: return WeChatScreen(false, "", emptyList())
-        val inputRect = Rect()
-        edit.getBoundsInScreen(inputRect)
-        val inputTop = inputRect.top
+        val edit = edits.firstOrNull()
+        val inputTop = if (edit != null) {
+            val inputRect = Rect()
+            edit.getBoundsInScreen(inputRect)
+            inputRect.top
+        } else {
+            (height * 0.86f).toInt()
+        }
 
         val minTop = (100 * density).toInt()
         val name = contactName.trim()
         val rows = ArrayList<Row>()
         val seen = HashSet<String>()
+        var hasLeft = false
+        var hasRight = false
 
         for (item in items) {
             if (item.editable) continue
@@ -57,11 +63,15 @@ object WeChatParser {
             if (!seen.add(key)) continue
 
             val centerX = (item.rect.left + item.rect.right) / 2
-            rows.add(Row(item.rect.top, ChatMessage(centerX > width * 0.55f, t)))
+            val fromMe = centerX > width * 0.55f
+            if (fromMe) hasRight = true else hasLeft = true
+            rows.add(Row(item.rect.top, ChatMessage(fromMe, t)))
         }
 
         rows.sortBy { it.top }
-        return WeChatScreen(rows.isNotEmpty(), name, rows.map { it.msg })
+
+        val isChat = rows.isNotEmpty() && (edit != null || (hasLeft && hasRight))
+        return WeChatScreen(isChat, name, rows.map { it.msg })
     }
 
     private fun walk(
