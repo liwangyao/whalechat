@@ -291,6 +291,13 @@ class ChatA11yService : AccessibilityService() {
     }
 
     fun sendText(text: String, retried: Boolean = false) {
+        val ime = WhaleIme.instance
+        if (ime != null && ime.commit(text)) {
+            suppressUntil = System.currentTimeMillis() + 2500
+            handler.postDelayed({ tapSendAboveIme() }, 700)
+            return
+        }
+
         val edit = findEditableAnyWindow()
         if (edit == null) {
             if (!retried) {
@@ -358,6 +365,39 @@ class ChatA11yService : AccessibilityService() {
         } catch (_: Throwable) {
         }
         return findSend(rootInActiveWindow)
+    }
+
+    private fun tapSendAboveIme() {
+        val send = findSendAnyWindow()
+        if (send != null) {
+            send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            return
+        }
+        try {
+            val dm = resources.displayMetrics
+            var imeTop = dm.heightPixels
+            try {
+                for (window in windows) {
+                    if (window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                        val r = Rect()
+                        window.getBoundsInScreen(r)
+                        if (r.top in 1 until imeTop) imeTop = r.top
+                    }
+                }
+            } catch (_: Throwable) {
+            }
+            val path = Path().apply {
+                moveTo(
+                    dm.widthPixels - (55 * dm.density),
+                    (imeTop - (35 * dm.density)).toFloat()
+                )
+            }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
+                .build()
+            dispatchGesture(gesture, null, null)
+        } catch (_: Throwable) {
+        }
     }
 
     private fun tapInputBar() {

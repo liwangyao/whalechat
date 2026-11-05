@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -161,6 +162,13 @@ class MainActivity : Activity() {
             )
         })
         content.addView(button("③ 复制当前屏幕结构（调试）") { dumpScreen() })
+        content.addView(button("④ 启用鲸聊输入法") {
+            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+        })
+        content.addView(button("⑤ 切换到鲸聊输入法") {
+            val manager = getSystemService(InputMethodManager::class.java)
+            manager.showInputMethodPicker()
+        })
 
         statusView = TextView(this).apply {
             textSize = 13f
@@ -178,9 +186,11 @@ class MainActivity : Activity() {
             val a11y = if (ChatA11yService.instance != null) "无障碍：已连接" else "无障碍：未连接"
             val overlay = if (Settings.canDrawOverlays(this)) "悬浮窗：已授权" else "悬浮窗：未授权（用通知栏）"
             val ball = if (settings.showBall) "悬浮球：开" else "悬浮球：关"
+            val imeId = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD) ?: ""
+            val ime = if (imeId.contains(packageName)) "输入法：鲸聊" else "输入法：系统"
             val backend = if (settings.backend == "dsh") "来源：DSH 桥" else "来源：直连 DeepSeek"
             val key = if (settings.apiKey.isBlank()) "Key：未填" else "Key：已填"
-            statusView.text = "$a11y\n$overlay\n$ball\n$backend\n$key"
+            statusView.text = "$a11y\n$overlay\n$ball\n$ime\n$backend\n$key"
         }
         if (settings.showBall && Settings.canDrawOverlays(this)) BallService.start(this)
     }
