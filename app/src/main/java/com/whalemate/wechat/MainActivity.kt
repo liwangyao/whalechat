@@ -160,6 +160,7 @@ class MainActivity : Activity() {
         addRadio(modeGroup, "fun", "幽默：轻松接梗", settings.mode == "fun")
         addRadio(modeGroup, "direct", "直球：说清楚", settings.mode == "direct")
         addRadio(modeGroup, "repair", "修复：道歉 / 和好", settings.mode == "repair")
+        addRadio(modeGroup, "tease", "会撩：松弛感 / 轻推拉", settings.mode == "tease")
         addRadio(modeGroup, "custom", "自定义：用下面填的提示词", settings.mode == "custom")
         modeCard.addView(modeGroup)
 

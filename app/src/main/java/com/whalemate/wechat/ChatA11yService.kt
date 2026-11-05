@@ -38,6 +38,7 @@ class ChatA11yService : AccessibilityService() {
             "fun" -> "幽默"
             "direct" -> "直球"
             "repair" -> "修复"
+            "tease" -> "会撩"
             "custom" -> "自定义"
             else -> "Jev"
         }

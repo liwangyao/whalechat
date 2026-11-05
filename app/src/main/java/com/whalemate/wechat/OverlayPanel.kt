@@ -132,7 +132,8 @@ object OverlayPanel {
             "eq" to "高情商：先接情绪再回",
             "fun" to "幽默：轻松接梗",
             "direct" to "直球：说清楚",
-            "repair" to "修复：道歉 / 和好"
+            "repair" to "修复：道歉 / 和好",
+            "tease" to "会撩：松弛感 / 轻推拉"
         )
         if (includeCustom) {
             modes.add("custom" to "自定义：用你填的提示词")

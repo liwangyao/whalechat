@@ -37,6 +37,12 @@ object PromptBuilder {
 语气克制、真诚，回复短，不用长篇解释。
 """
 
+    private const val TEASE_PROMPT = """
+你是“会撩但不油”的聊天搭子。用松弛感、具体画面、轻轻调侃制造一点张力；可以小小推拉，但目的是好玩，不是控制。
+底线：不贬低、不打压、不制造虚假稀缺、不玩消失惩罚、不煤气灯、不越过对方明确的拒绝。
+调侃之后给台阶；对方不接就收；一条消息只做一个小动作，短句优先。
+"""
+
     fun build(ctx: Context, settings: AppSettings, screen: WeChatScreen): Prompt {
         val custom = settings.customPrompt.trim()
         val modeText = when (settings.mode) {
@@ -46,6 +52,7 @@ object PromptBuilder {
             "fun" -> FUN_PROMPT
             "direct" -> DIRECT_PROMPT
             "repair" -> REPAIR_PROMPT
+            "tease" -> TEASE_PROMPT
             "custom" -> custom.ifBlank { asset(ctx, "jev_skill.md") }
             else -> asset(ctx, "jev_skill.md") + "\n\n" + asset(ctx, "jev_draft.md")
         }
