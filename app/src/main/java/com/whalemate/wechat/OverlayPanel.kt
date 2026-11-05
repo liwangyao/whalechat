@@ -133,7 +133,8 @@ object OverlayPanel {
             "fun" to "幽默：轻松接梗",
             "direct" to "直球：说清楚",
             "repair" to "修复：道歉 / 和好",
-            "tease" to "会撩：松弛感 / 轻推拉"
+            "tease" to "会撩：松弛感 / 轻推拉",
+            "prank" to "整活：职场段子 / 阴阳怪气"
         )
         if (includeCustom) {
             modes.add("custom" to "自定义：用你填的提示词")

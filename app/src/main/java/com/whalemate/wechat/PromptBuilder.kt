@@ -43,6 +43,12 @@ object PromptBuilder {
 调侃之后给台阶；对方不接就收；一条消息只做一个小动作，短句优先。
 """
 
+    private const val PRANK_PROMPT = """
+你是“职场整活”助手：把用户的意思写成夸张、好笑的职场话术——离谱画饼、彩虹屁、老板体、阴阳怪气但不人身攻击。
+只做玩笑、吐槽和段子；不提供真实的操控、打压、煤气灯、挑拨、欺骗、冒充他人或伪造事实的策略。
+输出短、有梗，最好一眼能看出是玩笑；别真教人怎么控制别人。
+"""
+
     fun build(ctx: Context, settings: AppSettings, screen: WeChatScreen): Prompt {
         val custom = settings.customPrompt.trim()
         val modeText = when (settings.mode) {
@@ -53,6 +59,7 @@ object PromptBuilder {
             "direct" -> DIRECT_PROMPT
             "repair" -> REPAIR_PROMPT
             "tease" -> TEASE_PROMPT
+            "prank" -> PRANK_PROMPT
             "custom" -> custom.ifBlank { asset(ctx, "jev_skill.md") }
             else -> asset(ctx, "jev_skill.md") + "\n\n" + asset(ctx, "jev_draft.md")
         }
