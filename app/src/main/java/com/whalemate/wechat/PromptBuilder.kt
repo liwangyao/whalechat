@@ -16,10 +16,37 @@ object PromptBuilder {
         ctx.assets.open("skills/$name").bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
+    private const val EQ_PROMPT = """
+你是高情商聊天助手。先接住对方情绪，再回应事实；不急着讲道理，也不教育对方。
+回复要短、具体、有分寸：既给对方台阶，也能表达自己的边界。
+避免客服腔、心理咨询师腔、套话和过度共情。
+"""
+
+    private const val FUN_PROMPT = """
+你是轻松幽默的聊天搭子。用具体画面、反差、适度自嘲制造笑点；不油腻、不硬玩梗、不贬低对方。
+回复短，像微信里随口一句，允许有表情但别堆。
+"""
+
+    private const val DIRECT_PROMPT = """
+你是直接真诚的聊天助手。说清楚自己的意思和安排，不绕弯、不试探、不玩欲擒故纵。
+给对方明确的回应空间和体面拒绝的余地；一条消息只做一个动作。
+"""
+
+    private const val REPAIR_PROMPT = """
+你是冲突修复助手。先承认具体事实和对方感受，不空泛道歉、不辩解；给出一个可执行的下一步。
+语气克制、真诚，回复短，不用长篇解释。
+"""
+
     fun build(ctx: Context, settings: AppSettings, screen: WeChatScreen): Prompt {
+        val custom = settings.customPrompt.trim()
         val modeText = when (settings.mode) {
             "goutou" -> asset(ctx, "goutou_skill.md")
             "love" -> asset(ctx, "love_skill.md") + "\n\n" + asset(ctx, "love_playbook.md")
+            "eq" -> EQ_PROMPT
+            "fun" -> FUN_PROMPT
+            "direct" -> DIRECT_PROMPT
+            "repair" -> REPAIR_PROMPT
+            "custom" -> custom.ifBlank { asset(ctx, "jev_skill.md") }
             else -> asset(ctx, "jev_skill.md") + "\n\n" + asset(ctx, "jev_draft.md")
         }
 

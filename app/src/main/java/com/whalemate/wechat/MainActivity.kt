@@ -57,6 +57,8 @@ class MainActivity : Activity() {
     private lateinit var autoSwitch: Switch
     private lateinit var ballSwitch: Switch
     private lateinit var autoAnalyzeSwitch: Switch
+    private lateinit var customNameEdit: EditText
+    private lateinit var customPromptEdit: EditText
     private lateinit var statusView: TextView
     private lateinit var chipA11y: TextView
     private lateinit var chipOverlay: TextView
@@ -154,6 +156,11 @@ class MainActivity : Activity() {
         addRadio(modeGroup, "jev", "Jev：一条自然的短句", settings.mode == "jev")
         addRadio(modeGroup, "goutou", "狗头军师：分析 + 1~3 条", settings.mode == "goutou")
         addRadio(modeGroup, "love", "恋爱大师：3 条 + 预测", settings.mode == "love")
+        addRadio(modeGroup, "eq", "高情商：先接情绪再回", settings.mode == "eq")
+        addRadio(modeGroup, "fun", "幽默：轻松接梗", settings.mode == "fun")
+        addRadio(modeGroup, "direct", "直球：说清楚", settings.mode == "direct")
+        addRadio(modeGroup, "repair", "修复：道歉 / 和好", settings.mode == "repair")
+        addRadio(modeGroup, "custom", "自定义：用下面填的提示词", settings.mode == "custom")
         modeCard.addView(modeGroup)
 
         modeCard.addView(label("对方阶段"))
@@ -174,6 +181,24 @@ class MainActivity : Activity() {
         modeCard.addView(label("备注（她的喜好、雷点等）"))
         notesEdit = input(settings.notes, InputType.TYPE_CLASS_TEXT)
         modeCard.addView(notesEdit)
+
+        modeCard.addView(label("自定义插件名"))
+        customNameEdit = input(settings.customName, InputType.TYPE_CLASS_TEXT)
+        modeCard.addView(customNameEdit)
+
+        modeCard.addView(label("自定义提示词（可粘贴 GitHub 上的）"))
+        customPromptEdit = EditText(this).apply {
+            setText(settings.customPrompt)
+            textSize = 14f
+            minLines = 4
+            gravity = Gravity.TOP
+            setTextColor(textColor)
+            setHintTextColor(muted)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(Color.parseColor("#F3F4F6"), 12)
+        }
+        modeCard.addView(customPromptEdit)
         root.addView(modeCard)
 
         root.addView(sectionTitle("开关"))
@@ -246,6 +271,8 @@ class MainActivity : Activity() {
         settings.dshToken = dshTokenEdit.text.toString().trim()
         settings.contactName = contactEdit.text.toString().trim()
         settings.notes = notesEdit.text.toString().trim()
+        settings.customName = customNameEdit.text.toString().trim().ifBlank { "自定义" }
+        settings.customPrompt = customPromptEdit.text.toString().trim()
         settings.autoSend = autoSwitch.isChecked
         settings.showBall = ballSwitch.isChecked
         settings.autoAnalyze = autoAnalyzeSwitch.isChecked

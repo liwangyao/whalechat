@@ -58,6 +58,14 @@ class AppSettings(context: Context) {
         get() = sp.getBoolean("show_ball", true)
         set(value) = sp.edit().putBoolean("show_ball", value).apply()
 
+    var customName: String
+        get() = sp.getString("custom_name", "自定义") ?: "自定义"
+        set(value) = sp.edit().putString("custom_name", value).apply()
+
+    var customPrompt: String
+        get() = sp.getString("custom_prompt", "") ?: ""
+        set(value) = sp.edit().putString("custom_prompt", value).apply()
+
     /** 收到新消息时自动分析（默认关，手动点球触发） */
     var autoAnalyze: Boolean
         get() = sp.getBoolean("auto_analyze", false)

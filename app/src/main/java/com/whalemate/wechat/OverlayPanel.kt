@@ -95,7 +95,13 @@ object OverlayPanel {
     }
 
     /** 点球先弹这个：选插件。 */
-    fun showModes(ctx: Context, currentMode: String, onPick: (String) -> Unit, onClose: () -> Unit) {
+    fun showModes(
+        ctx: Context,
+        currentMode: String,
+        includeCustom: Boolean,
+        onPick: (String) -> Unit,
+        onClose: () -> Unit
+    ) {
         dismiss()
 
         val app = ctx.applicationContext
@@ -119,11 +125,18 @@ object OverlayPanel {
             setPadding(0, 0, 0, dp(app, 6))
         })
 
-        val modes = listOf(
+        val modes = mutableListOf(
             "jev" to "Jev：一条自然的短句",
             "goutou" to "狗头军师：分析 + 1~3 条",
-            "love" to "恋爱大师：3 条 + 预测"
+            "love" to "恋爱大师：3 条 + 预测",
+            "eq" to "高情商：先接情绪再回",
+            "fun" to "幽默：轻松接梗",
+            "direct" to "直球：说清楚",
+            "repair" to "修复：道歉 / 和好"
         )
+        if (includeCustom) {
+            modes.add("custom" to "自定义：用你填的提示词")
+        }
         for ((id, label) in modes) {
             root.addView(Button(app).apply {
                 text = if (id == currentMode) "✓ $label" else label

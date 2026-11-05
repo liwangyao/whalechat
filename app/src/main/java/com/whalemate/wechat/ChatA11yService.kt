@@ -34,6 +34,11 @@ class ChatA11yService : AccessibilityService() {
         fun modeLabel(mode: String): String = when (mode) {
             "goutou" -> "狗头军师"
             "love" -> "恋爱大师"
+            "eq" -> "高情商"
+            "fun" -> "幽默"
+            "direct" -> "直球"
+            "repair" -> "修复"
+            "custom" -> "自定义"
             else -> "Jev"
         }
     }
@@ -143,6 +148,7 @@ class ChatA11yService : AccessibilityService() {
         OverlayPanel.showModes(
             this,
             settings.mode,
+            settings.customPrompt.isNotBlank(),
             { mode ->
                 settings.mode = mode
                 analyzeNow()
