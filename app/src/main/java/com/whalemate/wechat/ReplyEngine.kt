@@ -14,7 +14,7 @@ import java.net.URL
  *  - dsh：调「鲸聊桥」服务（我这边跑），技能/提示词/模型都在服务端，App 只发上下文。
  */
 object ReplyEngine {
-    fun generate(ctx: Context, settings: AppSettings, screen: WeChatScreen): List<ReplyOption> {
+    fun generate(ctx: Context, settings: AppSettings, screen: WeChatScreen): BrainResult {
         if (settings.backend == "dsh") {
             try {
                 return viaDsh(settings, screen)
@@ -26,14 +26,14 @@ object ReplyEngine {
         return viaDirect(ctx, settings, screen)
     }
 
-    private fun viaDirect(ctx: Context, settings: AppSettings, screen: WeChatScreen): List<ReplyOption> {
+    private fun viaDirect(ctx: Context, settings: AppSettings, screen: WeChatScreen): BrainResult {
         if (settings.apiKey.isBlank()) throw RuntimeException("先在设置里填 DeepSeek API Key")
         val prompt = PromptBuilder.build(ctx, settings, screen)
         val raw = AiClient.chat(settings, prompt.system, prompt.user)
-        return PromptBuilder.parseReplies(raw)
+        return PromptBuilder.parseResult(raw)
     }
 
-    private fun viaDsh(settings: AppSettings, screen: WeChatScreen): List<ReplyOption> {
+    private fun viaDsh(settings: AppSettings, screen: WeChatScreen): BrainResult {
         val base = settings.dshUrl.trimEnd('/')
         if (base.isBlank()) throw RuntimeException("桥服务地址为空")
         val url = URL("$base/whalechat/api/reply")
@@ -62,12 +62,13 @@ object ReplyEngine {
         }
         conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
         val code = conn.responseCode
-        val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+        val stream = if (code in 200..299) conn.inputStream else (conn.errorStream ?: conn.inputStream)
         val text = BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
         conn.disconnect()
         if (code !in 200..299) throw RuntimeException("HTTP $code: ${text.take(160)}")
 
         val obj = JSONObject(text)
+        val analysis = obj.optString("analysis", "").trim()
         val arr = obj.optJSONArray("options") ?: throw RuntimeException("桥没有返回 options")
         val out = ArrayList<ReplyOption>()
         for (i in 0 until arr.length()) {
@@ -76,6 +77,6 @@ object ReplyEngine {
             if (t.isNotEmpty()) out.add(ReplyOption(o.optString("tone", ""), t, o.optString("prediction", "")))
         }
         if (out.isEmpty()) throw RuntimeException("桥没有给出可用回复")
-        return out.take(3)
+        return BrainResult(analysis, out.take(3))
     }
 }

@@ -15,13 +15,14 @@ object OverlayPanel {
     private var panel: View? = null
     private var manager: WindowManager? = null
 
-    fun show(ctx: Context, replies: List<ReplyOption>, autoSend: Boolean, onPick: (String) -> Unit) {
+    fun show(
+        ctx: Context,
+        result: BrainResult,
+        modeLabel: String,
+        onPick: (String) -> Unit,
+        onRetry: () -> Unit
+    ) {
         dismiss()
-
-        if (autoSend && replies.isNotEmpty()) {
-            onPick(replies.first().text)
-            return
-        }
 
         val app = ctx.applicationContext
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -38,19 +39,29 @@ object OverlayPanel {
         }
 
         root.addView(TextView(app).apply {
-            text = "鲸聊 · 点一条发送"
-            textSize = 13f
-            setTextColor(Color.parseColor("#777777"))
+            text = "鲸聊 · $modeLabel"
+            textSize = 15f
+            setTextColor(Color.parseColor("#222222"))
         })
 
-        for (reply in replies.take(3)) {
+        if (result.analysis.isNotBlank()) {
+            root.addView(TextView(app).apply {
+                text = result.analysis
+                textSize = 13f
+                setTextColor(Color.parseColor("#666666"))
+                maxLines = 4
+                setPadding(0, dp(app, 6), 0, dp(app, 2))
+            })
+        }
+
+        for (option in result.options.take(3)) {
             root.addView(Button(app).apply {
-                text = reply.text
+                text = if (option.tone.isBlank()) option.text else "[${option.tone}] ${option.text}"
                 textSize = 15f
                 isAllCaps = false
                 setOnClickListener {
                     dismiss()
-                    onPick(reply.text)
+                    onPick(option.text)
                 }
             }, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -58,14 +69,29 @@ object OverlayPanel {
             ).apply { topMargin = dp(app, 6) })
         }
 
-        root.addView(TextView(app).apply {
-            text = "关闭"
-            textSize = 12f
+        val actions = LinearLayout(app).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
-            setTextColor(Color.parseColor("#999999"))
             setPadding(0, dp(app, 8), 0, 0)
+        }
+        actions.addView(TextView(app).apply {
+            text = "重读"
+            textSize = 13f
+            setTextColor(Color.parseColor("#2F6BFF"))
+            setPadding(dp(app, 12), dp(app, 4), dp(app, 12), dp(app, 4))
+            setOnClickListener {
+                dismiss()
+                onRetry()
+            }
+        })
+        actions.addView(TextView(app).apply {
+            text = "关闭"
+            textSize = 13f
+            setTextColor(Color.parseColor("#999999"))
+            setPadding(dp(app, 12), dp(app, 4), dp(app, 4), dp(app, 4))
             setOnClickListener { dismiss() }
         })
+        root.addView(actions)
 
         val params = WindowManager.LayoutParams(
             (app.resources.displayMetrics.widthPixels * 0.92f).toInt(),

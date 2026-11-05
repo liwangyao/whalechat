@@ -39,6 +39,8 @@ class MainActivity : Activity() {
     private lateinit var modeGroup: RadioGroup
     private lateinit var stageSpinner: Spinner
     private lateinit var autoSwitch: Switch
+    private lateinit var ballSwitch: Switch
+    private lateinit var autoAnalyzeSwitch: Switch
     private lateinit var statusView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -134,6 +136,18 @@ class MainActivity : Activity() {
         }
         content.addView(autoSwitch)
 
+        ballSwitch = Switch(this).apply {
+            text = "常驻悬浮球（点一下分析当前屏幕）"
+            isChecked = settings.showBall
+        }
+        content.addView(ballSwitch)
+
+        autoAnalyzeSwitch = Switch(this).apply {
+            text = "新消息自动分析（默认关）"
+            isChecked = settings.autoAnalyze
+        }
+        content.addView(autoAnalyzeSwitch)
+
         content.addView(button("保存设置") { save() })
         content.addView(button("① 打开无障碍设置") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -155,7 +169,7 @@ class MainActivity : Activity() {
         }
         content.addView(statusView)
 
-        content.addView(hint("用法：保存 → 开无障碍 → 打开微信聊天。她发新消息后：有悬浮窗权限就弹窗，没有就发通知栏三条。"))
+        content.addView(hint("用法：消息来了 → 下拉快捷开关点「鲸聊」→ 打开微信聊天 → 点悬浮球 → 选一条发。不用时常按关掉。"))
     }
 
     override fun onResume() {
@@ -163,9 +177,10 @@ class MainActivity : Activity() {
         if (::statusView.isInitialized) {
             val a11y = if (ChatA11yService.instance != null) "无障碍：已连接" else "无障碍：未连接"
             val overlay = if (Settings.canDrawOverlays(this)) "悬浮窗：已授权" else "悬浮窗：未授权（用通知栏）"
+            val ball = if (settings.showBall) "悬浮球：开" else "悬浮球：关"
             val backend = if (settings.backend == "dsh") "来源：DSH 桥" else "来源：直连 DeepSeek"
             val key = if (settings.apiKey.isBlank()) "Key：未填" else "Key：已填"
-            statusView.text = "$a11y\n$overlay\n$backend\n$key"
+            statusView.text = "$a11y\n$overlay\n$ball\n$backend\n$key"
         }
     }
 
@@ -178,6 +193,8 @@ class MainActivity : Activity() {
         settings.contactName = contactEdit.text.toString().trim()
         settings.notes = notesEdit.text.toString().trim()
         settings.autoSend = autoSwitch.isChecked
+        settings.showBall = ballSwitch.isChecked
+        settings.autoAnalyze = autoAnalyzeSwitch.isChecked
         settings.stage = stageSpinner.selectedItemPosition + 1
 
         val backend = findViewById<RadioButton>(backendGroup.checkedRadioButtonId)
@@ -185,6 +202,8 @@ class MainActivity : Activity() {
 
         val mode = findViewById<RadioButton>(modeGroup.checkedRadioButtonId)
         settings.mode = (mode?.tag as? String) ?: "jev"
+
+        ChatA11yService.instance?.refreshBall()
 
         toast("已保存")
     }

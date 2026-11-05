@@ -52,4 +52,14 @@ class AppSettings(context: Context) {
     var dshToken: String
         get() = sp.getString("dsh_token", "") ?: ""
         set(value) = sp.edit().putString("dsh_token", value).apply()
+
+    /** 常驻悬浮球 */
+    var showBall: Boolean
+        get() = sp.getBoolean("show_ball", true)
+        set(value) = sp.edit().putBoolean("show_ball", value).apply()
+
+    /** 收到新消息时自动分析（默认关，手动点球触发） */
+    var autoAnalyze: Boolean
+        get() = sp.getBoolean("auto_analyze", false)
+        set(value) = sp.edit().putBoolean("auto_analyze", value).apply()
 }

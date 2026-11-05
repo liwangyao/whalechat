@@ -13,7 +13,7 @@ import android.os.Build
 object ReplyNotifier {
     private const val CHANNEL = "replies"
 
-    fun show(ctx: Context, replies: List<ReplyOption>) {
+    fun show(ctx: Context, result: BrainResult) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -27,18 +27,21 @@ object ReplyNotifier {
             )
         }
 
+        val body = buildString {
+            if (result.analysis.isNotBlank()) append(result.analysis).append("\n\n")
+            result.options.forEachIndexed { index, option ->
+                append(index + 1).append(". ").append(option.text).append('\n')
+            }
+        }
+
         val builder = Notification.Builder(ctx, CHANNEL)
             .setSmallIcon(android.R.drawable.sym_action_chat)
             .setContentTitle("鲸聊 · 选一条发送")
-            .setContentText(replies.take(3).joinToString(" / ") { it.text })
-            .setStyle(
-                Notification.BigTextStyle().bigText(
-                    replies.take(3).joinToString("\n") { "• ${it.text}" }
-                )
-            )
+            .setContentText(result.options.take(3).joinToString(" / ") { it.text })
+            .setStyle(Notification.BigTextStyle().bigText(body))
             .setAutoCancel(true)
 
-        replies.take(3).forEachIndexed { index, reply ->
+        result.options.take(3).forEachIndexed { index, reply ->
             val intent = Intent(ctx, ReplyActionReceiver::class.java).putExtra("index", index)
             val pending = PendingIntent.getBroadcast(
                 ctx,

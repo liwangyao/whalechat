@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 
 data class ReplyOption(val tone: String, val text: String, val prediction: String)
+data class BrainResult(val analysis: String, val options: List<ReplyOption>)
 data class Prompt(val system: String, val user: String)
 
 object PromptBuilder {
@@ -55,7 +56,7 @@ $history
         return Prompt(system, user)
     }
 
-    fun parseReplies(raw: String): List<ReplyOption> {
+    fun parseResult(raw: String): BrainResult {
         var text = raw.trim()
         val start = text.indexOf('{')
         val end = text.lastIndexOf('}')
@@ -63,6 +64,8 @@ $history
         text = text.substring(start, end + 1)
 
         val obj = JSONObject(text)
+        val analysis = obj.optString("analysis", "").trim()
+
         val arr: JSONArray = obj.optJSONArray("options") ?: JSONArray()
         val out = ArrayList<ReplyOption>()
         for (i in 0 until arr.length()) {
@@ -77,6 +80,6 @@ $history
             if (single.isNotEmpty()) out.add(ReplyOption("直接", single, ""))
         }
         if (out.isEmpty()) throw RuntimeException("模型没给出可用回复")
-        return out.take(3)
+        return BrainResult(analysis, out.take(3))
     }
 }

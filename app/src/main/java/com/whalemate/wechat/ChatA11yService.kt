@@ -20,9 +20,15 @@ class ChatA11yService : AccessibilityService() {
         var instance: ChatA11yService? = null
 
         @Volatile
-        var pendingReplies: List<ReplyOption> = emptyList()
+        var pendingResult: BrainResult? = null
 
         const val WECHAT = "com.tencent.mm"
+
+        fun modeLabel(mode: String): String = when (mode) {
+            "goutou" -> "狗头军师"
+            "love" -> "恋爱大师"
+            else -> "Jev"
+        }
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -30,16 +36,18 @@ class ChatA11yService : AccessibilityService() {
     private var suppressUntil = 0L
     private var busy = false
 
-    private val scan = Runnable { analyze() }
+    private val scan = Runnable { analyze(true) }
 
     override fun onServiceConnected() {
         instance = this
+        refreshBall()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString() ?: return
         if (pkg != WECHAT) return
         if (System.currentTimeMillis() < suppressUntil) return
+        if (!AppSettings(this).autoAnalyze) return
         handler.removeCallbacks(scan)
         handler.postDelayed(scan, 800)
     }
@@ -48,41 +56,71 @@ class ChatA11yService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        FloatingBall.hide()
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
-    private fun analyze() {
+    fun refreshBall() {
+        val settings = AppSettings(this)
+        if (settings.showBall && Settings.canDrawOverlays(this)) {
+            FloatingBall.show(this) { analyzeNow() }
+        } else {
+            FloatingBall.hide()
+        }
+    }
+
+    fun analyzeNow() {
+        analyze(false)
+    }
+
+    private fun analyze(auto: Boolean) {
         if (busy) return
-        val root = rootInActiveWindow ?: return
+        val root = rootInActiveWindow
+        if (root == null) {
+            if (!auto) toast("当前没有可读界面")
+            return
+        }
         val dm = resources.displayMetrics
         val settings = AppSettings(this)
         val screen = WeChatParser.parse(
             root, dm.widthPixels, dm.heightPixels, dm.density, settings.contactName
         )
-        if (!screen.isChat || screen.messages.isEmpty()) return
-
-        val last = screen.messages.last()
-        if (last.fromMe) return
-
-        val key = screen.messages.takeLast(4).joinToString("|") {
-            (if (it.fromMe) "1" else "0") + it.text
+        if (!screen.isChat || screen.messages.isEmpty()) {
+            if (!auto) toast("不在微信聊天界面")
+            return
         }
-        if (key == lastKey) return
-        lastKey = key
+
+        if (auto) {
+            val last = screen.messages.last()
+            if (last.fromMe) return
+            val key = screen.messages.takeLast(4).joinToString("|") {
+                (if (it.fromMe) "1" else "0") + it.text
+            }
+            if (key == lastKey) return
+            lastKey = key
+        }
 
         busy = true
         Thread {
             try {
-                val replies = ReplyEngine.generate(this, settings, screen)
-                pendingReplies = replies
+                val result = ReplyEngine.generate(this, settings, screen)
+                pendingResult = result
                 handler.post {
                     when {
-                        settings.autoSend && replies.isNotEmpty() -> sendText(replies.first().text)
-                        Settings.canDrawOverlays(this) -> OverlayPanel.show(this, replies, false) { text ->
-                            sendText(text)
-                        }
-                        else -> ReplyNotifier.show(this, replies)
+                        settings.autoSend && result.options.isNotEmpty() ->
+                            sendText(result.options.first().text)
+
+                        Settings.canDrawOverlays(this) ->
+                            OverlayPanel.show(
+                                this,
+                                result,
+                                modeLabel(settings.mode),
+                                { text -> sendText(text) },
+                                { analyzeNow() }
+                            )
+
+                        else -> ReplyNotifier.show(this, result)
                     }
                 }
             } catch (t: Throwable) {
@@ -94,7 +132,7 @@ class ChatA11yService : AccessibilityService() {
     }
 
     fun sendByIndex(index: Int) {
-        val reply = pendingReplies.getOrNull(index) ?: return
+        val reply = pendingResult?.options?.getOrNull(index) ?: return
         sendText(reply.text)
     }
 
