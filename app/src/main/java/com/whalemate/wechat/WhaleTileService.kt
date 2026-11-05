@@ -20,15 +20,17 @@ class WhaleTileService : TileService() {
             Toast.makeText(this, "先给鲸聊悬浮窗权限", Toast.LENGTH_SHORT).show()
             return
         }
-        val service = ChatA11yService.instance
-        if (service == null) {
-            Toast.makeText(this, "先开启鲸聊的无障碍服务", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         val settings = AppSettings(this)
         settings.showBall = !settings.showBall
-        service.refreshBall()
+
+        val service = ChatA11yService.instance
+        if (service != null) {
+            service.refreshBall()
+        } else {
+            Toast.makeText(this, "无障碍没开：开启后球会自动恢复", Toast.LENGTH_SHORT).show()
+        }
+
         updateTile()
     }
 

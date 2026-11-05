@@ -40,6 +40,7 @@ class ChatA11yService : AccessibilityService() {
 
     override fun onServiceConnected() {
         instance = this
+        FloatingBall.hide()
         refreshBall()
     }
 
@@ -64,6 +65,7 @@ class ChatA11yService : AccessibilityService() {
     fun refreshBall() {
         val settings = AppSettings(this)
         if (settings.showBall && Settings.canDrawOverlays(this)) {
+            FloatingBall.hide()
             FloatingBall.show(this) { analyzeNow() }
         } else {
             FloatingBall.hide()

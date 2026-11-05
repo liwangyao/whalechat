@@ -182,6 +182,7 @@ class MainActivity : Activity() {
             val key = if (settings.apiKey.isBlank()) "Key：未填" else "Key：已填"
             statusView.text = "$a11y\n$overlay\n$ball\n$backend\n$key"
         }
+        ChatA11yService.instance?.refreshBall()
     }
 
     private fun save() {

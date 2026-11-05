@@ -17,7 +17,8 @@ object FloatingBall {
     private var manager: WindowManager? = null
 
     fun show(ctx: Context, onClick: () -> Unit) {
-        if (view != null) return
+        if (view?.isAttachedToWindow == true) return
+        hide()
 
         val app = ctx.applicationContext
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -91,7 +92,8 @@ object FloatingBall {
             wm.addView(ball, params)
             view = ball
             manager = wm
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            android.widget.Toast.makeText(app, "悬浮球添加失败：${t.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
