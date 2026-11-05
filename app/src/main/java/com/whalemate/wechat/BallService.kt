@@ -46,18 +46,18 @@ class BallService : Service() {
 
         FloatingBall.show(
             this,
-            onTap = { analyze() },
+            onTap = { showModes() },
             onClose = { stopSelf() }
         )
     }
 
-    private fun analyze() {
+    private fun showModes() {
         val service = ChatA11yService.instance
         if (service == null) {
             Toast.makeText(this, "无障碍没开：开启后才能读屏", Toast.LENGTH_SHORT).show()
             return
         }
-        service.analyzeNow()
+        service.showModePicker()
     }
 
     override fun onDestroy() {

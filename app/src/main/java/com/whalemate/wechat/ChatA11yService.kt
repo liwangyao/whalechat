@@ -138,6 +138,19 @@ class ChatA11yService : AccessibilityService() {
         analyze(false)
     }
 
+    fun showModePicker() {
+        val settings = AppSettings(this)
+        OverlayPanel.showModes(
+            this,
+            settings.mode,
+            { mode ->
+                settings.mode = mode
+                analyzeNow()
+            },
+            {}
+        )
+    }
+
     private fun analyze(auto: Boolean) {
         if (busy) return
         if (!auto) toast("正在读取屏幕…")
@@ -184,7 +197,8 @@ class ChatA11yService : AccessibilityService() {
                             modeLabel(settings.mode),
                             { text -> sendText(text) },
                             { analyzeNow() },
-                            { BallService.stop(this) }
+                            { BallService.stop(this) },
+                            { showModePicker() }
                         )
                     }
                 }

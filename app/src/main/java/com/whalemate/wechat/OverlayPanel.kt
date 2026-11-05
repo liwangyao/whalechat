@@ -21,7 +21,8 @@ object OverlayPanel {
         modeLabel: String,
         onPick: (String) -> Unit,
         onRetry: () -> Unit,
-        onHideBall: () -> Unit
+        onHideBall: () -> Unit,
+        onSwitchMode: () -> Unit
     ) {
         dismiss()
 
@@ -75,35 +76,90 @@ object OverlayPanel {
             gravity = Gravity.END
             setPadding(0, dp(app, 8), 0, 0)
         }
-        actions.addView(TextView(app).apply {
-            text = "重读"
-            textSize = 13f
-            setTextColor(Color.parseColor("#2F6BFF"))
-            setPadding(dp(app, 10), dp(app, 4), dp(app, 10), dp(app, 4))
-            setOnClickListener {
-                dismiss()
-                onRetry()
-            }
+        actions.addView(actionText(app, "重读", "#2F6BFF") {
+            dismiss()
+            onRetry()
         })
-        actions.addView(TextView(app).apply {
-            text = "隐藏球"
-            textSize = 13f
-            setTextColor(Color.parseColor("#2F6BFF"))
-            setPadding(dp(app, 10), dp(app, 4), dp(app, 10), dp(app, 4))
-            setOnClickListener {
-                dismiss()
-                onHideBall()
-            }
+        actions.addView(actionText(app, "换模式", "#2F6BFF") {
+            dismiss()
+            onSwitchMode()
         })
-        actions.addView(TextView(app).apply {
-            text = "关闭"
-            textSize = 13f
-            setTextColor(Color.parseColor("#999999"))
-            setPadding(dp(app, 10), dp(app, 4), dp(app, 4), dp(app, 4))
-            setOnClickListener { dismiss() }
+        actions.addView(actionText(app, "隐藏球", "#2F6BFF") {
+            dismiss()
+            onHideBall()
         })
+        actions.addView(actionText(app, "关闭", "#999999") { dismiss() })
         root.addView(actions)
 
+        addWindow(app, wm, root)
+    }
+
+    /** 点球先弹这个：选插件。 */
+    fun showModes(ctx: Context, currentMode: String, onPick: (String) -> Unit, onClose: () -> Unit) {
+        dismiss()
+
+        val app = ctx.applicationContext
+        val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        val root = LinearLayout(app).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(app, 14), dp(app, 12), dp(app, 14), dp(app, 10))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(app, 16).toFloat()
+                setStroke(dp(app, 1), Color.parseColor("#E0E0E0"))
+            }
+            elevation = dp(app, 10).toFloat()
+        }
+
+        root.addView(TextView(app).apply {
+            text = "用哪个插件？"
+            textSize = 15f
+            setTextColor(Color.parseColor("#222222"))
+            setPadding(0, 0, 0, dp(app, 6))
+        })
+
+        val modes = listOf(
+            "jev" to "Jev：一条自然的短句",
+            "goutou" to "狗头军师：分析 + 1~3 条",
+            "love" to "恋爱大师：3 条 + 预测"
+        )
+        for ((id, label) in modes) {
+            root.addView(Button(app).apply {
+                text = if (id == currentMode) "✓ $label" else label
+                textSize = 15f
+                isAllCaps = false
+                setOnClickListener {
+                    dismiss()
+                    onPick(id)
+                }
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(app, 6) })
+        }
+
+        root.addView(actionText(app, "关闭", "#999999") {
+            dismiss()
+            onClose()
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { gravity = Gravity.END; topMargin = dp(app, 6) })
+
+        addWindow(app, wm, root)
+    }
+
+    private fun actionText(app: Context, text: String, color: String, onClick: () -> Unit) =
+        TextView(app).apply {
+            this.text = text
+            textSize = 13f
+            setTextColor(Color.parseColor(color))
+            setPadding(dp(app, 10), dp(app, 4), dp(app, 10), dp(app, 4))
+            setOnClickListener { onClick() }
+        }
+
+    private fun addWindow(app: Context, wm: WindowManager, root: View) {
         val params = WindowManager.LayoutParams(
             (app.resources.displayMetrics.widthPixels * 0.92f).toInt(),
             WindowManager.LayoutParams.WRAP_CONTENT,
