@@ -43,6 +43,18 @@ class ChatA11yService : AccessibilityService() {
 
     private val scan = Runnable { analyze(true) }
 
+    private fun wechatRoot(): AccessibilityNodeInfo? {
+        try {
+            for (window in windows) {
+                val root = window.root ?: continue
+                if (root.packageName?.toString() == WECHAT) return root
+            }
+        } catch (_: Throwable) {
+        }
+        val active = rootInActiveWindow ?: return null
+        return if (active.packageName?.toString() == WECHAT) active else null
+    }
+
     override fun onServiceConnected() {
         instance = this
     }
@@ -71,7 +83,7 @@ class ChatA11yService : AccessibilityService() {
     private fun analyze(auto: Boolean) {
         if (busy) return
         if (!auto) toast("正在读取屏幕…")
-        val root = rootInActiveWindow
+        val root = wechatRoot()
         if (root == null) {
             if (!auto) toast("当前没有可读界面")
             return
@@ -170,7 +182,7 @@ class ChatA11yService : AccessibilityService() {
     }
 
     fun sendText(text: String, retried: Boolean = false) {
-        val root = rootInActiveWindow
+        val root = wechatRoot()
         if (root == null) {
             toast("微信不在前台")
             return
@@ -202,7 +214,7 @@ class ChatA11yService : AccessibilityService() {
 
         suppressUntil = System.currentTimeMillis() + 2500
         handler.postDelayed({
-            val send = findSend(rootInActiveWindow)
+            val send = findSend(wechatRoot())
             if (send == null) {
                 toast("没找到发送按钮")
             } else {
@@ -226,7 +238,7 @@ class ChatA11yService : AccessibilityService() {
     }
 
     fun dumpScreen(): String {
-        val root = rootInActiveWindow ?: return "没有可读界面"
+        val root = wechatRoot() ?: return "没有可读界面"
         val sb = StringBuilder()
         dump(root, sb, 0)
         return sb.toString()
