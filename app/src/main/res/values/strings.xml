@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">鲸聊</string>
+    <string name="a11y_label">鲸聊屏幕助手</string>
+    <string name="a11y_desc">读取微信聊天内容，生成并发送 AI 回复。</string>
+</resources>

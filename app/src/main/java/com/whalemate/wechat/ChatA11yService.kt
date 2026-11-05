@@ -1,0 +1,174 @@
+package com.whalemate.wechat
+
+import android.accessibilityservice.AccessibilityService
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.graphics.Rect
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
+
+class ChatA11yService : AccessibilityService() {
+
+    companion object {
+        @Volatile
+        var instance: ChatA11yService? = null
+
+        const val WECHAT = "com.tencent.mm"
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastKey = ""
+    private var suppressUntil = 0L
+    private var busy = false
+
+    private val scan = Runnable { analyze() }
+
+    override fun onServiceConnected() {
+        instance = this
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        val pkg = event?.packageName?.toString() ?: return
+        if (pkg != WECHAT) return
+        if (System.currentTimeMillis() < suppressUntil) return
+        handler.removeCallbacks(scan)
+        handler.postDelayed(scan, 800)
+    }
+
+    override fun onInterrupt() {}
+
+    override fun onDestroy() {
+        instance = null
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+
+    private fun analyze() {
+        if (busy) return
+        val root = rootInActiveWindow ?: return
+        val dm = resources.displayMetrics
+        val settings = AppSettings(this)
+        val screen = WeChatParser.parse(
+            root, dm.widthPixels, dm.heightPixels, dm.density, settings.contactName
+        )
+        if (!screen.isChat || screen.messages.isEmpty()) return
+
+        val last = screen.messages.last()
+        if (last.fromMe) return
+
+        val key = screen.messages.takeLast(4).joinToString("|") {
+            (if (it.fromMe) "1" else "0") + it.text
+        }
+        if (key == lastKey) return
+        lastKey = key
+
+        busy = true
+        Thread {
+            try {
+                val replies = ReplyEngine.generate(this, settings, screen)
+                handler.post {
+                    OverlayPanel.show(this, replies, settings.autoSend) { text -> sendText(text) }
+                }
+            } catch (t: Throwable) {
+                handler.post { toast("生成失败：${t.message}") }
+            } finally {
+                busy = false
+            }
+        }.start()
+    }
+
+    fun sendText(text: String) {
+        val root = rootInActiveWindow
+        if (root == null) {
+            toast("微信不在前台")
+            return
+        }
+        val edit = findEditable(root)
+        if (edit == null) {
+            toast("没找到输入框")
+            return
+        }
+
+        val args = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+        }
+        var ok = edit.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (!ok) {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("reply", text))
+            ok = edit.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+        }
+        if (!ok) {
+            toast("输入失败")
+            return
+        }
+
+        suppressUntil = System.currentTimeMillis() + 2500
+        handler.postDelayed({
+            val send = findSend(rootInActiveWindow)
+            if (send == null) {
+                toast("没找到发送按钮")
+            } else {
+                send.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            }
+        }, 600)
+    }
+
+    fun dumpScreen(): String {
+        val root = rootInActiveWindow ?: return "没有可读界面"
+        val sb = StringBuilder()
+        dump(root, sb, 0)
+        return sb.toString()
+    }
+
+    private fun dump(node: AccessibilityNodeInfo?, sb: StringBuilder, depth: Int) {
+        if (node == null || depth > 40) return
+        val r = Rect()
+        node.getBoundsInScreen(r)
+        val text = node.text?.toString() ?: ""
+        val desc = node.contentDescription?.toString() ?: ""
+        if (text.isNotEmpty() || desc.isNotEmpty()) {
+            sb.append(" ".repeat(depth.coerceAtMost(20)))
+                .append(node.className)
+                .append(" [").append(r.left).append(",").append(r.top).append(",")
+                .append(r.right).append(",").append(r.bottom).append("] ")
+                .append(if (text.isNotEmpty()) "text=$text" else "desc=$desc")
+                .append('\n')
+        }
+        for (i in 0 until node.childCount) {
+            dump(node.getChild(i), sb, depth + 1)
+        }
+    }
+
+    private fun findEditable(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        val cls = node.className?.toString() ?: ""
+        if (node.isEditable || cls.contains("EditText")) return node
+        for (i in 0 until node.childCount) {
+            val found = findEditable(node.getChild(i))
+            if (found != null) return found
+        }
+        return null
+    }
+
+    private fun findSend(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        val text = node.text?.toString() ?: ""
+        val desc = node.contentDescription?.toString() ?: ""
+        if ((text == "发送" || desc == "发送") && node.isClickable) return node
+        for (i in 0 until node.childCount) {
+            val found = findSend(node.getChild(i))
+            if (found != null) return found
+        }
+        return null
+    }
+
+    private fun toast(msg: String) {
+        handler.post { Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show() }
+    }
+}
