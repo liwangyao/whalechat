@@ -43,16 +43,70 @@ class ChatA11yService : AccessibilityService() {
 
     private val scan = Runnable { analyze(true) }
 
+    private fun scoreRoot(node: AccessibilityNodeInfo?, depth: Int): Int {
+        if (node == null || depth > 30) return 0
+        var score = if (!node.text.isNullOrEmpty() || !node.contentDescription.isNullOrEmpty()) 1 else 0
+        for (i in 0 until node.childCount) {
+            score += scoreRoot(node.getChild(i), depth + 1)
+        }
+        return score
+    }
+
     private fun wechatRoot(): AccessibilityNodeInfo? {
+        var best: AccessibilityNodeInfo? = null
+        var bestScore = -1
         try {
             for (window in windows) {
                 val root = window.root ?: continue
-                if (root.packageName?.toString() == WECHAT) return root
+                if (root.packageName?.toString() != WECHAT) continue
+                val score = scoreRoot(root, 0)
+                if (score > bestScore) {
+                    bestScore = score
+                    best = root
+                }
             }
         } catch (_: Throwable) {
         }
+        if (best != null) return best
         val active = rootInActiveWindow ?: return null
         return if (active.packageName?.toString() == WECHAT) active else null
+    }
+
+    private fun windowsReport(): String {
+        val sb = StringBuilder()
+        try {
+            val active = rootInActiveWindow
+            sb.append("active=").append(active?.packageName)
+                .append(" score=").append(scoreRoot(active, 0)).append('\n')
+            var index = 0
+            for (window in windows) {
+                val root = window.root
+                sb.append("window[").append(index++).append("] pkg=")
+                    .append(root?.packageName)
+                    .append(" type=").append(window.type)
+                    .append(" bounds=").append(window.bounds)
+                    .append(" score=").append(scoreRoot(root, 0))
+                    .append('\n')
+                appendSamples(root, sb, 0, 10)
+            }
+        } catch (t: Throwable) {
+            sb.append("ERR ").append(t.message)
+        }
+        return sb.toString()
+    }
+
+    private fun appendSamples(node: AccessibilityNodeInfo?, sb: StringBuilder, depth: Int, limit: Int) {
+        if (node == null || depth > 30) return
+        val text = node.text?.toString() ?: ""
+        val desc = node.contentDescription?.toString() ?: ""
+        if (text.isNotEmpty() || desc.isNotEmpty()) {
+            sb.append("  ").append(node.className).append(" text=")
+                .append(if (text.isNotEmpty()) text.take(40) else "desc=" + desc.take(40))
+                .append('\n')
+        }
+        for (i in 0 until node.childCount) {
+            appendSamples(node.getChild(i), sb, depth + 1, limit)
+        }
     }
 
     override fun onServiceConnected() {
@@ -95,7 +149,7 @@ class ChatA11yService : AccessibilityService() {
         )
         if (!screen.isChat || screen.messages.isEmpty()) {
             if (!auto) {
-                val dump = dumpScreen()
+                val dump = windowsReport()
                 val saved = saveDump(dump)
                 toast(
                     if (saved) "没识别到，已存 Download（${dump.length} 字）"
