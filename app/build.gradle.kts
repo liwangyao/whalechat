@@ -11,8 +11,8 @@ android {
         applicationId = "com.whalemate.wechat"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.4.3"
+        versionCode = 16
+        versionName = "0.5.0"
     }
 
     buildTypes {
