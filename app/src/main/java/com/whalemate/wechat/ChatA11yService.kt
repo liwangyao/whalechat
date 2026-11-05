@@ -81,10 +81,12 @@ class ChatA11yService : AccessibilityService() {
             var index = 0
             for (window in windows) {
                 val root = window.root
+                val rect = Rect()
+                window.getBoundsInScreen(rect)
                 sb.append("window[").append(index++).append("] pkg=")
                     .append(root?.packageName)
                     .append(" type=").append(window.type)
-                    .append(" bounds=").append(window.bounds)
+                    .append(" bounds=").append(rect)
                     .append(" score=").append(scoreRoot(root, 0))
                     .append('\n')
                 appendSamples(root, sb, 0, 10)
