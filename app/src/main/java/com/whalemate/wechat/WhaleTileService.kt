@@ -23,14 +23,7 @@ class WhaleTileService : TileService() {
 
         val settings = AppSettings(this)
         settings.showBall = !settings.showBall
-
-        val service = ChatA11yService.instance
-        if (service != null) {
-            service.refreshBall()
-        } else {
-            Toast.makeText(this, "无障碍没开：开启后球会自动恢复", Toast.LENGTH_SHORT).show()
-        }
-
+        if (settings.showBall) BallService.start(this) else BallService.stop(this)
         updateTile()
     }
 

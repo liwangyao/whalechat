@@ -182,7 +182,7 @@ class MainActivity : Activity() {
             val key = if (settings.apiKey.isBlank()) "Key：未填" else "Key：已填"
             statusView.text = "$a11y\n$overlay\n$ball\n$backend\n$key"
         }
-        ChatA11yService.instance?.refreshBall()
+        if (settings.showBall && Settings.canDrawOverlays(this)) BallService.start(this)
     }
 
     private fun save() {
@@ -204,7 +204,7 @@ class MainActivity : Activity() {
         val mode = findViewById<RadioButton>(modeGroup.checkedRadioButtonId)
         settings.mode = (mode?.tag as? String) ?: "jev"
 
-        ChatA11yService.instance?.refreshBall()
+        if (settings.showBall) BallService.start(this) else BallService.stop(this)
 
         toast("已保存")
     }

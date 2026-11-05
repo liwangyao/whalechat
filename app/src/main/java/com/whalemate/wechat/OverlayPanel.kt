@@ -20,7 +20,8 @@ object OverlayPanel {
         result: BrainResult,
         modeLabel: String,
         onPick: (String) -> Unit,
-        onRetry: () -> Unit
+        onRetry: () -> Unit,
+        onHideBall: () -> Unit
     ) {
         dismiss()
 
@@ -78,17 +79,27 @@ object OverlayPanel {
             text = "重读"
             textSize = 13f
             setTextColor(Color.parseColor("#2F6BFF"))
-            setPadding(dp(app, 12), dp(app, 4), dp(app, 12), dp(app, 4))
+            setPadding(dp(app, 10), dp(app, 4), dp(app, 10), dp(app, 4))
             setOnClickListener {
                 dismiss()
                 onRetry()
             }
         })
         actions.addView(TextView(app).apply {
+            text = "隐藏球"
+            textSize = 13f
+            setTextColor(Color.parseColor("#2F6BFF"))
+            setPadding(dp(app, 10), dp(app, 4), dp(app, 10), dp(app, 4))
+            setOnClickListener {
+                dismiss()
+                onHideBall()
+            }
+        })
+        actions.addView(TextView(app).apply {
             text = "关闭"
             textSize = 13f
             setTextColor(Color.parseColor("#999999"))
-            setPadding(dp(app, 12), dp(app, 4), dp(app, 4), dp(app, 4))
+            setPadding(dp(app, 10), dp(app, 4), dp(app, 4), dp(app, 4))
             setOnClickListener { dismiss() }
         })
         root.addView(actions)

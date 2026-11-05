@@ -14,7 +14,6 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
@@ -46,8 +45,6 @@ class ChatA11yService : AccessibilityService() {
 
     override fun onServiceConnected() {
         instance = this
-        FloatingBall.hide()
-        refreshBall()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -63,19 +60,8 @@ class ChatA11yService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
-        FloatingBall.hide()
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
-    }
-
-    fun refreshBall() {
-        val settings = AppSettings(this)
-        if (settings.showBall && Settings.canDrawOverlays(this)) {
-            FloatingBall.hide()
-            FloatingBall.show(this) { analyzeNow() }
-        } else {
-            FloatingBall.hide()
-        }
     }
 
     fun analyzeNow() {
@@ -97,10 +83,11 @@ class ChatA11yService : AccessibilityService() {
         )
         if (!screen.isChat || screen.messages.isEmpty()) {
             if (!auto) {
-                val saved = saveDump()
+                val dump = dumpScreen()
+                val saved = saveDump(dump)
                 toast(
-                    if (saved) "没识别到聊天界面，已存 Download/whalechat-dump.txt"
-                    else "没识别到聊天界面，屏幕结构已复制"
+                    if (saved) "没识别到，已存 Download（${dump.length} 字）"
+                    else "没识别到，已复制（${dump.length} 字）"
                 )
             }
             return
@@ -126,16 +113,14 @@ class ChatA11yService : AccessibilityService() {
                         settings.autoSend && result.options.isNotEmpty() ->
                             sendText(result.options.first().text)
 
-                        Settings.canDrawOverlays(this) ->
-                            OverlayPanel.show(
-                                this,
-                                result,
-                                modeLabel(settings.mode),
-                                { text -> sendText(text) },
-                                { analyzeNow() }
-                            )
-
-                        else -> ReplyNotifier.show(this, result)
+                        else -> OverlayPanel.show(
+                            this,
+                            result,
+                            modeLabel(settings.mode),
+                            { text -> sendText(text) },
+                            { analyzeNow() },
+                            { BallService.stop(this) }
+                        )
                     }
                 }
             } catch (t: Throwable) {
@@ -151,14 +136,13 @@ class ChatA11yService : AccessibilityService() {
         sendText(reply.text)
     }
 
-    private fun saveDump(): Boolean {
-        val dump = dumpScreen()
+    private fun saveDump(text: String): Boolean {
         try {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("whalechat-dump", dump))
+            cm.setPrimaryClip(ClipData.newPlainText("whalechat-dump", text))
         } catch (_: Throwable) {
         }
-        return saveDumpToDownloads(dump)
+        return saveDumpToDownloads(text)
     }
 
     private fun saveDumpToDownloads(text: String): Boolean {
@@ -168,10 +152,17 @@ class ChatA11yService : AccessibilityService() {
                 put(MediaStore.Downloads.DISPLAY_NAME, "whalechat-dump.txt")
                 put(MediaStore.Downloads.MIME_TYPE, "text/plain")
                 put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
             }
             val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: return false
-            contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+            val out = contentResolver.openOutputStream(uri) ?: return false
+            out.use {
+                it.write(text.toByteArray(Charsets.UTF_8))
+                it.flush()
+            }
+            val done = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+            contentResolver.update(uri, done, null, null)
             true
         } catch (_: Throwable) {
             false

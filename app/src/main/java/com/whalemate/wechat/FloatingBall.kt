@@ -10,15 +10,16 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.TextView
 import kotlin.math.abs
 
-/** 常驻悬浮球：点一下 = 读当前屏幕；可拖动。 */
+/** 悬浮球：点球 = 分析；点右上角 × = 关闭悬浮球。可拖动。 */
 object FloatingBall {
     private var view: View? = null
     private var manager: WindowManager? = null
 
-    fun show(ctx: Context, onClick: () -> Unit) {
+    fun show(ctx: Context, onTap: () -> Unit, onClose: () -> Unit) {
         if (view?.isAttachedToWindow == true) return
         hide()
 
@@ -26,6 +27,7 @@ object FloatingBall {
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val density = app.resources.displayMetrics.density
         val size = (60 * density).toInt()
+        val closeSize = (24 * density).toInt()
 
         val ball = TextView(app).apply {
             text = "鲸"
@@ -40,15 +42,35 @@ object FloatingBall {
             elevation = 6 * density
         }
 
+        val close = TextView(app).apply {
+            text = "×"
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#888888"))
+            }
+            setOnClickListener { onClose() }
+        }
+
+        val container = FrameLayout(app).apply {
+            addView(ball, FrameLayout.LayoutParams(size, size))
+            addView(close, FrameLayout.LayoutParams(closeSize, closeSize).apply {
+                gravity = Gravity.TOP or Gravity.END
+            })
+        }
+
+        val windowSize = size + closeSize / 2
         val params = WindowManager.LayoutParams(
-            size,
-            size,
+            windowSize,
+            windowSize,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = app.resources.displayMetrics.widthPixels - size - (18 * density).toInt()
+            x = app.resources.displayMetrics.widthPixels - windowSize - (12 * density).toInt()
             y = (app.resources.displayMetrics.heightPixels * 0.35f).toInt()
         }
 
@@ -61,12 +83,12 @@ object FloatingBall {
 
         val detector = GestureDetector(app, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
-                onClick()
+                onTap()
                 return true
             }
         })
 
-        ball.setOnTouchListener { v, event ->
+        ball.setOnTouchListener { _, event ->
             detector.onTouchEvent(event)
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -85,7 +107,7 @@ object FloatingBall {
                         params.x = startX + dx
                         params.y = startY + dy
                         try {
-                            wm.updateViewLayout(v, params)
+                            wm.updateViewLayout(container, params)
                         } catch (_: Throwable) {
                         }
                     }
@@ -95,8 +117,8 @@ object FloatingBall {
         }
 
         try {
-            wm.addView(ball, params)
-            view = ball
+            wm.addView(container, params)
+            view = container
             manager = wm
         } catch (t: Throwable) {
             android.widget.Toast.makeText(app, "悬浮球添加失败：${t.message}", android.widget.Toast.LENGTH_SHORT).show()
