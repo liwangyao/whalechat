@@ -189,10 +189,17 @@ class ChatA11yService : AccessibilityService() {
     }
 
     private fun generate(settings: AppSettings, screen: WeChatScreen) {
+        val merged = ConversationStore.merge(
+            ConversationStore.load(this, settings.contactName),
+            screen.messages
+        )
+        ConversationStore.save(this, settings.contactName, merged)
+        val enriched = screen.copy(messages = merged)
+
         busy = true
         Thread {
             try {
-                val result = ReplyEngine.generate(this, settings, screen)
+                val result = ReplyEngine.generate(this, settings, enriched)
                 pendingResult = result
                 handler.post {
                     when {

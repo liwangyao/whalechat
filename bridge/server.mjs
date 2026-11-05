@@ -49,7 +49,7 @@ ${modeText}
 - options 给 2~3 条，text 每条不超过 40 个汉字，像真人微信，别堆表情、别堆排比、别写成小作文。
 - 不编造事实、记忆、共同经历；不确定就承接或轻轻提问。`
 
-  const messages = Array.isArray(body.messages) ? body.messages.slice(-12) : []
+  const messages = Array.isArray(body.messages) ? body.messages.slice(-20) : []
   const history = messages.map(m => (m.fromMe ? '我' : '她') + '：' + (m.text || '')).join('\n')
   const user = `对方：${body.contact || '当前聊天对象'}（阶段：${stageText(body.stage)}）
 备注：${body.notes || '无'}

@@ -81,7 +81,7 @@ $modeText
             3 -> "有好感/暧昧"
             else -> "聊过几次"
         }
-        val history = screen.messages.takeLast(12).joinToString("\n") {
+        val history = screen.messages.takeLast(20).joinToString("\n") {
             (if (it.fromMe) "我" else "她") + "：" + it.text
         }
 
@@ -91,7 +91,8 @@ $modeText
 最近对话：
 $history
 
-请针对她最新的一条，给出回复建议。
+请先梳理整段对话：关系阶段、最近在聊什么、她的情绪和态度有没有变化。
+然后针对她最新这一条给出回复；回复要接得住上下文，不要像只读了一句话。
         """.trimIndent()
 
         return Prompt(system, user)

@@ -44,7 +44,7 @@ object ReplyEngine {
             put("contact", settings.contactName)
             put("notes", settings.notes)
             put("messages", JSONArray().apply {
-                for (m in screen.messages.takeLast(12)) {
+                for (m in screen.messages.takeLast(20)) {
                     put(JSONObject().put("fromMe", m.fromMe).put("text", m.text))
                 }
             })
