@@ -203,43 +203,53 @@ class ChatA11yService : AccessibilityService() {
             return
         }
         busy = true
-        takeScreenshot(
-            Display.DEFAULT_DISPLAY,
-            mainExecutor,
-            object : AccessibilityService.TakeScreenshotCallback {
-                override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
-                    val hardware = result.hardwareBuffer
-                    val bitmap = try {
-                        Bitmap.wrapHardwareBuffer(hardware, result.colorSpace)
-                            ?.copy(Bitmap.Config.ARGB_8888, false)
-                    } catch (_: Throwable) {
-                        null
-                    } finally {
-                        hardware.close()
-                    }
-                    if (bitmap == null) {
-                        busy = false
-                        toast("截图失败")
-                        return
-                    }
-                    OcrReader.read(this@ChatA11yService, bitmap, settings.contactName) { screen ->
-                        if (!screen.isChat || screen.messages.isEmpty()) {
+        try {
+            takeScreenshot(
+                Display.DEFAULT_DISPLAY,
+                mainExecutor,
+                object : AccessibilityService.TakeScreenshotCallback {
+                    override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
+                        val hardware = result.hardwareBuffer
+                        val bitmap = try {
+                            Bitmap.wrapHardwareBuffer(hardware, result.colorSpace)
+                                ?.copy(Bitmap.Config.ARGB_8888, false)
+                        } catch (_: Throwable) {
+                            null
+                        } finally {
+                            hardware.close()
+                        }
+                        if (bitmap == null) {
                             busy = false
-                            val dump = windowsReport()
-                            saveDump(dump)
-                            toast("截图里没识别到文字（报告 ${dump.length} 字已存）")
-                        } else {
-                            generate(settings, screen)
+                            toast("截图失败")
+                            return
+                        }
+                        try {
+                            OcrReader.read(this@ChatA11yService, bitmap, settings.contactName) { screen ->
+                                if (!screen.isChat || screen.messages.isEmpty()) {
+                                    busy = false
+                                    val dump = windowsReport()
+                                    saveDump(dump)
+                                    toast("截图里没识别到文字（报告 ${dump.length} 字已存）")
+                                } else {
+                                    generate(settings, screen)
+                                }
+                            }
+                        } catch (t: Throwable) {
+                            busy = false
+                            toast("OCR 初始化失败：${t.message}")
                         }
                     }
-                }
 
-                override fun onFailure(errorCode: Int) {
-                    busy = false
-                    toast("截图失败：$errorCode")
+                    override fun onFailure(errorCode: Int) {
+                        busy = false
+                        toast("截图失败：$errorCode")
+                    }
                 }
-            }
-        )
+            )
+        } catch (t: Throwable) {
+            busy = false
+            toast("截图接口异常：${t.message}")
+        }
     }
 
     fun sendByIndex(index: Int) {
