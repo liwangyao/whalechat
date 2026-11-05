@@ -9,10 +9,10 @@ android {
 
     defaultConfig {
         applicationId = "com.whalemate.wechat"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.5.0"
+        versionCode = 17
+        versionName = "0.6.0"
     }
 
     buildTypes {
@@ -29,8 +29,14 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 }
 
 dependencies {
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation("io.github.hzkitty:rapidocr4j-android:1.0.0")
 }
