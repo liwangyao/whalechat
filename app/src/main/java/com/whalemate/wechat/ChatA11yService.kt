@@ -40,6 +40,7 @@ class ChatA11yService : AccessibilityService() {
             "repair" -> "修复"
             "tease" -> "会撩"
             "prank" -> "整活"
+            "icebreak" -> "破冰"
             "custom" -> "自定义"
             else -> "Jev"
         }
@@ -145,6 +146,11 @@ class ChatA11yService : AccessibilityService() {
         analyze(false)
     }
 
+    fun analyzeIcebreak() {
+        val settings = AppSettings(this)
+        generate(settings, WeChatScreen(true, settings.contactName, emptyList()))
+    }
+
     fun showModePicker() {
         val settings = AppSettings(this)
         OverlayPanel.showModes(
@@ -153,7 +159,7 @@ class ChatA11yService : AccessibilityService() {
             settings.customPrompt.isNotBlank(),
             { mode ->
                 settings.mode = mode
-                analyzeNow()
+                if (mode == "icebreak") analyzeIcebreak() else analyzeNow()
             },
             {}
         )

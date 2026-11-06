@@ -134,7 +134,8 @@ object OverlayPanel {
             "direct" to "直球：说清楚",
             "repair" to "修复：道歉 / 和好",
             "tease" to "会撩：松弛感 / 轻推拉",
-            "prank" to "整活：职场段子 / 阴阳怪气"
+            "prank" to "整活：职场段子 / 阴阳怪气",
+            "icebreak" to "破冰：主动开场 / 重启话题"
         )
         if (includeCustom) {
             modes.add("custom" to "自定义：用你填的提示词")

@@ -49,6 +49,12 @@ object PromptBuilder {
 输出短、有梗，最好一眼能看出是玩笑；别真教人怎么控制别人。
 """
 
+    private const val ICEBREAK_PROMPT = """
+你是破冰 / 主动开场助手。目标：让对话自然开始，或从冷掉的状态重启；不是查户口，也不是长篇自我介绍。
+原则：低压力、具体、给对方容易接的钩子；一条消息只做一件事；可以自嘲但不贬低自己；不硬撩、不连续追问。
+优先从她可能感兴趣的具体事物、最近动态、共同场景切入；如果最近对话已经冷掉，给“重启”而不是“追问”。
+"""
+
     fun build(ctx: Context, settings: AppSettings, screen: WeChatScreen): Prompt {
         val custom = settings.customPrompt.trim()
         val modeText = when (settings.mode) {
@@ -60,6 +66,7 @@ object PromptBuilder {
             "repair" -> REPAIR_PROMPT
             "tease" -> TEASE_PROMPT
             "prank" -> PRANK_PROMPT
+            "icebreak" -> ICEBREAK_PROMPT
             "custom" -> custom.ifBlank { asset(ctx, "jev_skill.md") }
             else -> asset(ctx, "jev_skill.md") + "\n\n" + asset(ctx, "jev_draft.md")
         }
@@ -85,7 +92,17 @@ $modeText
             (if (it.fromMe) "我" else "她") + "：" + it.text
         }
 
-        val user = """
+        val user = if (settings.mode == "icebreak") {
+            """
+对方：${settings.contactName.ifBlank { "当前聊天对象" }}（阶段：$stageText）
+备注：${settings.notes.ifBlank { "无" }}
+最近聊天（可能为空）：
+${history.ifBlank { "（空）" }}
+
+现在没有新消息。请给我 3 条可以直接发出去的主动开场 / 重启话题的消息，每条不超过 30 个汉字。
+            """.trimIndent()
+        } else {
+            """
 对方：${settings.contactName.ifBlank { "当前聊天对象" }}（阶段：$stageText）
 备注：${settings.notes.ifBlank { "无" }}
 最近对话：
@@ -93,7 +110,8 @@ $history
 
 请先梳理整段对话：关系阶段、最近在聊什么、她的情绪和态度有没有变化。
 然后针对她最新这一条给出回复；回复要接得住上下文，不要像只读了一句话。
-        """.trimIndent()
+            """.trimIndent()
+        }
 
         return Prompt(system, user)
     }
