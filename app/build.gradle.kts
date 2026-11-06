@@ -11,8 +11,8 @@ android {
         applicationId = "com.whalemate.wechat"
         minSdk = 29
         targetSdk = 34
-        versionCode = 24
-        versionName = "0.9.0"
+        versionCode = 25
+        versionName = "0.9.1"
 
         ndk {
             abiFilters += "arm64-v8a"
